@@ -24,18 +24,42 @@
       <Extensions>moc;h;cpp</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
+    <Filter Include="Header Files\data">
+      <UniqueIdentifier>{4b728e10-c8a1-4547-a074-608ce76a7107}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\data">
+      <UniqueIdentifier>{4eb2642b-7aa1-43f1-b255-2b2e7df1d4e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common">
+      <UniqueIdentifier>{87ac0e09-8e9f-4572-8539-de7c1a485cdf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common">
+      <UniqueIdentifier>{ef0c6815-77e9-47c5-bf18-150f6dd8c518}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="databasecontroller.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="data\databasecontroller.cpp">
+      <Filter>Source Files\data</Filter>
+    </ClCompile>
+    <ClCompile Include="common\message.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="common\person.cpp">
+      <Filter>Source Files\common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="databasecontroller.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="data\databasecontroller.h">
+      <Filter>Header Files\data</Filter>
+    </ClInclude>
+    <ClInclude Include="common\message.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\person.h">
+      <Filter>Header Files\common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,0 +1,50 @@
+[
+    {
+        "dateTime": "15.01.2019 17:06:42",
+        "from": {
+            "avatarUrl": "file:Pasha.jpg",
+            "firstName": "Pavel",
+            "id": 2,
+            "lastName": "Zharov"
+        },
+        "text": "Hello!",
+        "to": {
+            "avatarUrl": "file:Vanya.jpg",
+            "firstName": "Ivan",
+            "id": 1,
+            "lastName": "Ivlev"
+        }
+    },
+    {
+        "dateTime": "15.01.2019 17:08:42",
+        "from": {
+            "avatarUrl": "file:Pasha.jpg",
+            "firstName": "Pavel",
+            "id": 2,
+            "lastName": "Zharov"
+        },
+        "text": "Ololo\n\n\nPyschPysch\n\n!!!",
+        "to": {
+            "avatarUrl": "file:Vanya.jpg",
+            "firstName": "Ivan",
+            "id": 1,
+            "lastName": "Ivlev"
+        }
+    },
+    {
+        "dateTime": "15.01.2019 17:09:42",
+        "from": {
+            "avatarUrl": "file:Vanya.jpg",
+            "firstName": "Ivan",
+            "id": 1,
+            "lastName": "Ivlev"
+        },
+        "text": "How are you?",
+        "to": {
+            "avatarUrl": "file:Pasha.jpg",
+            "firstName": "Pavel",
+            "id": 2,
+            "lastName": "Zharov"
+        }
+    }
+]
