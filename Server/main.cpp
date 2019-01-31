@@ -1,18 +1,13 @@
-#include "data/databasecontroller.h"
+#include "controllers/globalcontroller.h"
 
 #include <QTextStream>
 
-using namespace Data;
+using namespace Controllers;
 
 int main(int argc, char *argv[])
 {
-	DatabaseController controller;
+	QCoreApplication a(argc, argv);
 
-	const QString lastError = controller.lastError();
-	if (!lastError.isEmpty())
-	{
-		QTextStream(stdout) << lastError;
-		system("pause");
-	}
-	return 0;
+	GlobalController controller;
+	return a.exec();
 }

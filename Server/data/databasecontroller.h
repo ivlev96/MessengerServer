@@ -11,6 +11,8 @@
 #include <QDir>
 #include <QString>
 
+namespace Controllers
+{
 namespace Data
 {
 
@@ -29,7 +31,10 @@ public:
 private:
 	bool initQueries();
 	bool createEmptyDatabase();
+
+#ifdef _DEBUG
 	bool debugFillEmptyDatabase();
+#endif
 
 	Common::Person getPersonRecord(int id) const;
 
@@ -45,4 +50,5 @@ private:
 	mutable QSqlQuery m_insertPersonQuery;
 };
 
+}
 }

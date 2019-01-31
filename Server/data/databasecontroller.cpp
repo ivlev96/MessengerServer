@@ -4,7 +4,7 @@
 #include <QFile>
 #include <QJsonDocument>
 
-using namespace Data;
+using namespace Controllers::Data;
 using namespace Common;
 
 DatabaseController::DatabaseController()
@@ -37,15 +37,6 @@ DatabaseController::DatabaseController()
 			return;
 		}
 	}
-
-	QJsonArray all = getMessages(1, 2, 3, 2);
-	QJsonDocument doc(all);
-
-	QFile debugMessages1("debugMessages1.json");
-	assert(debugMessages1.open(QFile::WriteOnly));
-
-	debugMessages1.write(doc.toJson());
-	debugMessages1.close();
 #endif
 }
 
@@ -235,6 +226,7 @@ bool DatabaseController::createEmptyDatabase()
 	return true;
 }
 
+#ifdef _DEBUG
 bool DatabaseController::debugFillEmptyDatabase()
 {
 	QFile debugMessages("debugMessages.json");
@@ -261,6 +253,7 @@ bool DatabaseController::debugFillEmptyDatabase()
 
 	return true;
 }
+#endif
 
 Person DatabaseController::getPersonRecord(int id) const
 {
