@@ -3,9 +3,6 @@
 #include "data/databasecontroller.h"
 #include "network/servercontroller.h"
 
-#include <QObject>
-#include <QThread>
-
 namespace Controllers
 {
 
@@ -17,9 +14,12 @@ public:
 	GlobalController(QObject *parent = nullptr);
 	~GlobalController();
 
+private slots:
+	void onError(const QString& error);
 
 private:
-	std::shared_ptr<Data::DatabaseController> m_db;
+	QTextStream m_cout;
+	std::unique_ptr<Data::DatabaseController> m_db;
 	Network::ServerController* m_server;
 	QThread* m_serverThread;
 };

@@ -62,11 +62,11 @@
     <ClCompile Include="network\servercontroller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="data\databasecontroller.h">
-      <Filter>Header Files\data</Filter>
-    </ClInclude>
     <ClInclude Include="common\message.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
@@ -79,6 +79,9 @@
     <ClInclude Include="common\common.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="controllers\globalcontroller.h">
@@ -86,6 +89,9 @@
     </QtMoc>
     <QtMoc Include="network\servercontroller.h">
       <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="data\databasecontroller.h">
+      <Filter>Header Files\data</Filter>
     </QtMoc>
   </ItemGroup>
 </Project>

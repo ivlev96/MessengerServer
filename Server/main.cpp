@@ -1,7 +1,5 @@
 #include "controllers/globalcontroller.h"
 
-#include <QTextStream>
-
 using namespace Controllers;
 
 int main(int argc, char *argv[])

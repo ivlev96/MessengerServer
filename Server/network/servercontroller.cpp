@@ -4,13 +4,8 @@ using namespace Controllers::Network;
 
 ServerController::ServerController(quint16 port, QObject *parent)
 	: QObject(parent)
-	, m_log(stdout)
-	, m_server(new QWebSocketServer("SunChat Server", QWebSocketServer::NonSecureMode, this))
+	, m_port(port)
 {
-	assert(m_server->listen(QHostAddress::Any, port));
-	log(QString("SunChat Server is listening on port %1").arg(port));
-
-	assert(connect(m_server, &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
 }
 
 ServerController::~ServerController()
@@ -32,11 +27,28 @@ void ServerController::onNewConnection()
 	m_clients << newSocket;
 }
 
+void ServerController::onThreadStarted()
+{
+	m_server = std::make_unique<QWebSocketServer>("SunChat Server", QWebSocketServer::NonSecureMode, this);
+	
+	assert(m_server->listen(QHostAddress::Any, m_port));
+	log(QString("SunChat Server is listening on port %1").arg(m_port));
+
+	assert(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
+}
+
+void ServerController::onResponseReady(const QString& response, QWebSocket* socket)
+{
+	socket->sendTextMessage(response);
+}
+
 void ServerController::onMessageReceived(const QString& message)
 {
 	QWebSocket *client = qobject_cast<QWebSocket*>(sender());
 	assert(client);
 	log(client, message);
+	
+	emit processClientQuery(message, client);
 }
 
 void ServerController::onClientError(QAbstractSocket::SocketError)
@@ -59,14 +71,12 @@ void ServerController::onClientDisconnected()
 
 void ServerController::log(QWebSocket* client, const QString& text) const
 {
-	m_log << peerInfo(client) << "\n[\n" << text << "\n]\n\n";
-	m_log.flush();
+	emit error(QString("%1\n[\n%2\n]\n\n").arg(peerInfo(client), text));
 }
 
 void ServerController::log(const QString& text) const
 {
-	m_log << text << "\n\n";
-	m_log.flush();
+	emit error(text);
 }
 
 QString ServerController::peerInfo(QWebSocket* peer)

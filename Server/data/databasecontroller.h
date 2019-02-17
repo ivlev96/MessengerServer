@@ -2,52 +2,69 @@
 
 #include "common/message.h"
 #include "common/person.h"
+#include "common/commands.h"
 
-#include <QSqlDatabase>
-#include <QSqlRecord>
-#include <QSqlQuery>
-#include <QSqlError>
-#include <QJsonArray>
-#include <QDir>
-#include <QString>
+class QWebSocket;
 
 namespace Controllers
 {
 namespace Data
 {
 
-class DatabaseController
+class DatabaseController : public QObject
 {
+	Q_OBJECT
+
 public:
 	DatabaseController();
 	~DatabaseController();
 
-	QString lastError() const;
+public slots:
+	void processClientQuery(const QString& query, QWebSocket* socket);
 
-	QJsonArray getMessages(int id1, int id2, std::size_t count, std::size_t from = 0) const;
-	bool insertMessages(const QJsonArray& messages);
-	bool insertPerson(const QJsonObject& person);
+signals:
+	void responseReady(const QString& response, QWebSocket* socket);
+	void error(const QString& error) const;
 
 private:
-	bool initQueries();
+	QString processRegistrationQuery(const QJsonObject& command) const;
+	QString processLogInRequestQuery(const QJsonObject& command) const;
+	QString processGetMessagesQuery(const QJsonObject& command) const;
+	QString processSendMessagesQuery(const QJsonObject& command) const;
+
+	std::vector<Common::Message> getMessages(const Common::GetMessagesRequest& request) const;
+	std::vector<Common::Message> insertMessages(const Common::SendMessagesRequest& request) const;
+	
+	std::optional<Common::Person> getPerson(Common::PersonIdType id) const;
+	std::optional<Common::Person> getPerson(const QString& login, const QString& password) const;
+	std::optional<Common::Person> insertPerson(const Common::RegistrationRequest& request) const;
+
+	Common::PersonIdType getLastInsertedPersonId() const;
+	Common::MessageIdType getLastInsertedMessageId() const;
+
+	std::optional<QString> initQueries();
 	bool createEmptyDatabase();
 
-#ifdef _DEBUG
+#ifdef o_DEBUG
 	bool debugFillEmptyDatabase();
 #endif
-
-	Common::Person getPersonRecord(int id) const;
 
 private:
 	QSqlDatabase m_database;
 	const QString m_databaseName;
-	mutable QString m_lastError;
 
-	mutable QSqlQuery m_selectQuery;
-	mutable QSqlQuery m_insertQuery;
+	mutable QSqlQuery m_selectMessagesQuery;
+	mutable QSqlQuery m_insertMessageQuery;
+	mutable QSqlQuery m_getMessageIdQuery;
 
 	mutable QSqlQuery m_selectPersonQuery;
 	mutable QSqlQuery m_insertPersonQuery;
+
+	mutable QSqlQuery m_insertAuthInfoQuery;
+	mutable QSqlQuery m_checkIfLoginExistsQuery;
+	mutable QSqlQuery m_selectPersonFromAuthInfoQuery;
+
+	mutable QSqlQuery m_getLastInsertedIdQuery;
 };
 
 }

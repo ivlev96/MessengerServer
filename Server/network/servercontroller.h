@@ -4,12 +4,6 @@
 #include "common/commands.h"
 #include "common/person.h"
 
-#include <QObject>
-#include <QtWebSockets>
-#include <QList>
-#include <QString>
-#include <QTextStream>
-
 namespace Controllers
 {
 namespace Network
@@ -23,6 +17,14 @@ public:
 	ServerController(quint16 port, QObject *parent = nullptr);
 	~ServerController();
 
+signals:
+	void error(const QString& error) const;
+	void processClientQuery(const QString& query, QWebSocket* socket);
+
+public slots:
+	void onThreadStarted();
+	void onResponseReady(const QString& response, QWebSocket* socket);
+
 private slots:
 	void onNewConnection();
 	void onMessageReceived(const QString& message);
@@ -35,8 +37,8 @@ private:
 	static QString peerInfo(QWebSocket* peer);
 
 private:
-	mutable QTextStream m_log;
-	QWebSocketServer* m_server;
+	quint16 m_port;
+	std::unique_ptr<QWebSocketServer> m_server;
 	QList<QWebSocket*> m_clients;
 };
 
