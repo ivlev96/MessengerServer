@@ -1,5 +1,6 @@
 #include "databasecontroller.h"
 #include "common/commands.h"
+#include "common/common.h"
 
 using namespace Controllers::Data;
 DatabaseController::DatabaseController()
@@ -60,13 +61,17 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 	{
 		emit responseReady(processLogInRequestQuery(json), socket);
 	}
-	else if (type == Common::getMessagesRequest)
+	else if (type == Common::getLastMessagesRequest)
 	{
-		emit responseReady(processGetMessagesQuery(json), socket);
+		emit responseReady(processGetLastMessagesQuery(json), socket);
 	}
 	else if (type == Common::sendMessagesRequest)
 	{
 		emit responseReady(processSendMessagesQuery(json), socket);
+	}
+	else if (type == Common::getMessagesRequest)
+	{
+		emit responseReady(processGetMessagesQuery(json), socket);
 	}
 	else
 	{
@@ -90,10 +95,10 @@ QString DatabaseController::processLogInRequestQuery(const QJsonObject& command)
 	return QJsonDocument(response.toJson()).toJson();
 }
 
-QString DatabaseController::processGetMessagesQuery(const QJsonObject& command) const
+QString DatabaseController::processGetLastMessagesQuery(const QJsonObject& command) const
 {
-	const Common::GetMessagesRequest request(command);
-	const Common::GetMessagesResponse response(request.id1, request.id2, request.isNew, getMessages(request), request.before);
+	const Common::GetLastMessagesRequest request(command);
+	const Common::GetLastMessagesResponse response(request.id, getLastMessages(request), request.before);
 
 	return QJsonDocument(response.toJson()).toJson();
 }
@@ -106,6 +111,14 @@ QString DatabaseController::processSendMessagesQuery(const QJsonObject& command)
 	return QJsonDocument(response.toJson()).toJson();
 }
 
+QString DatabaseController::processGetMessagesQuery(const QJsonObject& command) const
+{
+	const Common::GetMessagesRequest request(command);
+	const Common::GetMessagesResponse response(request.id1, request.id2, getMessages(request), request.before);
+
+	return QJsonDocument(response.toJson()).toJson();
+}
+
 std::vector<Common::Message> DatabaseController::getMessages(const Common::GetMessagesRequest& request) const
 {
 	std::map<Common::PersonIdType, Common::Person> person;
@@ -113,39 +126,38 @@ std::vector<Common::Message> DatabaseController::getMessages(const Common::GetMe
 	person[request.id1] = *getPerson(request.id1);
 	person[request.id2] = *getPerson(request.id2);
 
-	m_selectMessagesQuery.bindValue(":id1", request.id1);
-	m_selectMessagesQuery.bindValue(":id2", request.id2);
-	m_selectMessagesQuery.bindValue(":count", request.count);
-	m_selectMessagesQuery.bindValue(":before", request.before.has_value() ? *request.before : 0);
-	m_selectMessagesQuery.bindValue(":isNew", request.isNew);
+	m_getMessagesQuery.bindValue(":id1", request.id1);
+	m_getMessagesQuery.bindValue(":id2", request.id2);
+	m_getMessagesQuery.bindValue(":count", request.count);
+	m_getMessagesQuery.bindValue(":before", request.before.has_value() ? *request.before : 0);
+	m_getMessagesQuery.bindValue(":isNew", !request.before.has_value());
 
-	if (!m_selectMessagesQuery.exec())
+	if (!m_getMessagesQuery.exec())
 	{
-		emit error(m_selectMessagesQuery.lastError().text());
+		emit error(m_getMessagesQuery.lastError().text());
 		return {};
 	}
 
 	std::vector<Common::Message> messages;
 
-	while (m_selectMessagesQuery.next())
+	while (m_getMessagesQuery.next())
 	{
-		const int idFrom = m_selectMessagesQuery.value(1).toInt();
-		const int idTo = m_selectMessagesQuery.value(2).toInt();
-
-		const Common::MessageIdType id = m_selectMessagesQuery.value(0).toInt();
+		const Common::MessageIdType id = m_getMessagesQuery.value(0).toInt();
 		const QDateTime dateTime = 
-			QDateTime::fromString(m_selectMessagesQuery.value(1).toString(), "dd.MM.yyyy hh:mm:ss");
+			QDateTime::fromString(m_getMessagesQuery.value(1).toString(), Common::dateTimeFormat);
 
-		const QString message = m_selectMessagesQuery.value(4).toString();
+		const Common::PersonIdType idFrom = m_getMessagesQuery.value(2).toInt();
+		const Common::PersonIdType idTo = m_getMessagesQuery.value(3).toInt();
+
+		const QString text = m_getMessagesQuery.value(4).toString();
 
 		messages.emplace_back(
 				idFrom,
 				idTo,
 				dateTime,
-				message,
+				text,
 				id,
-				Common::Message::State::Sent
-			);
+				Common::Message::State::Sent);
 	}
 
 	return messages;
@@ -278,6 +290,47 @@ std::optional<Common::Person> DatabaseController::insertPerson(const Common::Reg
 	);
 }
 
+std::vector<std::pair<Common::Person, Common::Message>> DatabaseController::getLastMessages(const Common::GetLastMessagesRequest& request) const
+{
+	m_getLastMessagesQuery.bindValue(":id", request.id);
+	m_getLastMessagesQuery.bindValue(":count", request.count);
+	m_getLastMessagesQuery.bindValue(":before", request.before.has_value() ? *request.before : 0);
+	m_getLastMessagesQuery.bindValue(":isNew", !request.before.has_value());
+
+	if (!m_getLastMessagesQuery.exec())
+	{
+		emit error(m_getLastMessagesQuery.lastError().text());
+		return {};
+	}
+
+	std::vector<std::pair<Common::Person, Common::Message>> messages;
+
+	while (m_getLastMessagesQuery.next())
+	{
+		const Common::MessageIdType messageId = m_getLastMessagesQuery.value(0).toInt();
+		const int idFrom = m_getLastMessagesQuery.value(1).toInt();
+		const int idTo = m_getLastMessagesQuery.value(2).toInt();
+
+		const QDateTime dateTime =
+			QDateTime::fromString(m_getLastMessagesQuery.value(3).toString(), Common::dateTimeFormat);
+
+		const QString text = m_getLastMessagesQuery.value(4).toString();
+
+		const Common::Message message(idFrom, idTo, dateTime, text, messageId, Common::Message::State::Sent);
+
+		const Common::PersonIdType otherId = m_getLastMessagesQuery.value(5).toInt();
+		const QString firstName = m_getLastMessagesQuery.value(6).toString();
+		const QString lastName = m_getLastMessagesQuery.value(7).toString();
+		const QString avatarUrl = m_getLastMessagesQuery.value(8).toString();
+
+		const Common::Person other(otherId, firstName, lastName, avatarUrl);
+
+		messages.emplace_back(other, message);
+	}
+
+	return messages;
+}
+
 Common::PersonIdType Controllers::Data::DatabaseController::getLastInsertedPersonId() const
 {
 	if (!m_getLastInsertedIdQuery.exec())
@@ -312,7 +365,7 @@ std::optional<QString> DatabaseController::initQueries()
 {
 	assert(m_database.isOpen());
 
-	m_selectMessagesQuery = QSqlQuery(m_database);
+	m_getMessagesQuery = QSqlQuery(m_database);
 	m_insertMessageQuery = QSqlQuery(m_database);
 	m_getMessageIdQuery = QSqlQuery(m_database);
 
@@ -322,6 +375,8 @@ std::optional<QString> DatabaseController::initQueries()
 	m_insertAuthInfoQuery = QSqlQuery(m_database);
 	m_checkIfLoginExistsQuery = QSqlQuery(m_database);
 	m_selectPersonFromAuthInfoQuery = QSqlQuery(m_database);
+
+	m_getLastMessagesQuery = QSqlQuery(m_database);
 
 	m_getLastInsertedIdQuery = QSqlQuery(m_database);
 
@@ -334,27 +389,27 @@ std::optional<QString> DatabaseController::initQueries()
 		return m_insertMessageQuery.lastError().text();
 	}
 
-	if (!m_selectMessagesQuery.prepare(
+	if (!m_getMessagesQuery.prepare(
 		"SELECT * "
 		"	FROM (SELECT id, messageDateTime, idFrom, idTo, messageText "
 		"		FROM Messages "
-		"		WHERE (idFrom == :id1 AND idTo == :id2 "
-		"			OR idFrom == :id2 AND idTo == :id1) "
+		"		WHERE (idFrom = :id1 AND idTo = :id2 "
+		"			OR idFrom = :id2 AND idTo = :id1) "
 		"			AND (:isNew OR id < :before) "			
 		"	ORDER BY id DESC "
 		"	LIMIT :count) as result "
 		"ORDER BY id ASC"))
 	{
-		return m_selectMessagesQuery.lastError().text();
+		return m_getMessagesQuery.lastError().text();
 	}
 
 	if (!m_getMessageIdQuery.prepare(
 		"SELECT id "
 		"	FROM Messages "
-		"	WHERE idFrom == :idFrom "
-		"		AND idTo == :idTo "
-		"		AND messageDateTime == :messageDateTime "
-		"		AND messageText == :messageText "
+		"	WHERE idFrom = :idFrom "
+		"		AND idTo = :idTo "
+		"		AND messageDateTime = :messageDateTime "
+		"		AND messageText = :messageText "
 		"ORDER BY id DESC "
 		"LIMIT 1"))
 	{
@@ -364,7 +419,7 @@ std::optional<QString> DatabaseController::initQueries()
 	if (!m_selectPersonQuery.prepare(
 		"SELECT firstName, lastName, avatarUrl "
 		"	FROM Person "
-		"	WHERE id == :id"))
+		"	WHERE id = :id"))
 	{
 		return m_selectPersonQuery.lastError().text();
 	}
@@ -390,7 +445,7 @@ std::optional<QString> DatabaseController::initQueries()
 	if (!m_checkIfLoginExistsQuery.prepare(
 		"SELECT EXISTS (SELECT * "
 		"	FROM Auth "
-		"	WHERE login == :login)"))
+		"	WHERE login = :login)"))
 	{
 		return m_checkIfLoginExistsQuery.lastError().text();
 	}
@@ -398,12 +453,36 @@ std::optional<QString> DatabaseController::initQueries()
 	if (!m_selectPersonFromAuthInfoQuery.prepare(
 		"SELECT id, firstName, lastName, avatarUrl "
 		"	FROM Person "
-		"	WHERE id == (SELECT personId "
+		"	WHERE id = (SELECT personId "
 		"		FROM Auth "
-		"		WHERE login == :login "
-		"			AND password == :password)"))
+		"		WHERE login = :login "
+		"			AND password = :password)"))
 	{
 		return m_selectPersonFromAuthInfoQuery.lastError().text();
+	}
+
+	if (!m_getLastMessagesQuery.prepare(
+		"SELECT m.id, m.idFrom, m.idTo, m.messageDateTime, m.messageText, p.id, p.firstName, p.lastName, p.avatarUrl "
+		"    FROM "
+		"        (SELECT otherId, max(id) as id "
+		"            FROM "
+		"                (SELECT idTo as otherId, * "
+		"                    FROM Messages "
+		"                WHERE idFrom = :id	 "
+		"                UNION "
+		"                SELECT idFrom as otherId, * "
+		"                    FROM Messages "
+		"                WHERE idTo = :id) "
+		"        GROUP BY otherId) filtered "
+		"    JOIN Messages m "
+		"    ON m.id = filtered.id "
+		"        AND (m.id < :before OR :isNew) "
+		"    LEFT JOIN Person p "
+		"    ON filtered.otherId = p.id "
+		"ORDER BY m.id DESC "
+		"LIMIT :count "))
+	{
+		return m_getLastMessagesQuery.lastError().text();
 	}
 
 	if (!m_getLastInsertedIdQuery.prepare(

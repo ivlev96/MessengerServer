@@ -29,8 +29,9 @@ signals:
 private:
 	QString processRegistrationQuery(const QJsonObject& command) const;
 	QString processLogInRequestQuery(const QJsonObject& command) const;
-	QString processGetMessagesQuery(const QJsonObject& command) const;
+	QString processGetLastMessagesQuery(const QJsonObject& command) const;
 	QString processSendMessagesQuery(const QJsonObject& command) const;
+	QString processGetMessagesQuery(const QJsonObject& command) const;
 
 	std::vector<Common::Message> getMessages(const Common::GetMessagesRequest& request) const;
 	std::vector<Common::Message> insertMessages(const Common::SendMessagesRequest& request) const;
@@ -38,6 +39,8 @@ private:
 	std::optional<Common::Person> getPerson(Common::PersonIdType id) const;
 	std::optional<Common::Person> getPerson(const QString& login, const QString& password) const;
 	std::optional<Common::Person> insertPerson(const Common::RegistrationRequest& request) const;
+
+	std::vector<std::pair<Common::Person, Common::Message>> getLastMessages(const Common::GetLastMessagesRequest& request) const;
 
 	Common::PersonIdType getLastInsertedPersonId() const;
 	Common::MessageIdType getLastInsertedMessageId() const;
@@ -53,7 +56,7 @@ private:
 	QSqlDatabase m_database;
 	const QString m_databaseName;
 
-	mutable QSqlQuery m_selectMessagesQuery;
+	mutable QSqlQuery m_getMessagesQuery;
 	mutable QSqlQuery m_insertMessageQuery;
 	mutable QSqlQuery m_getMessageIdQuery;
 
@@ -63,6 +66,8 @@ private:
 	mutable QSqlQuery m_insertAuthInfoQuery;
 	mutable QSqlQuery m_checkIfLoginExistsQuery;
 	mutable QSqlQuery m_selectPersonFromAuthInfoQuery;
+
+	mutable QSqlQuery m_getLastMessagesQuery;
 
 	mutable QSqlQuery m_getLastInsertedIdQuery;
 };
