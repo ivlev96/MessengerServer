@@ -17,12 +17,12 @@ DatabaseController::DatabaseController()
 			return;
 		}
 	}
-	assert(m_database.open());
+	ASSERT(m_database.open());
 
 	const auto error = initQueries();
 	if (error.has_value())
 	{
-		assert(!error->toStdString().c_str());
+		ASSERT(!error->toStdString().c_str());
 	}
 
 #ifdef o_DEBUG
@@ -45,12 +45,12 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 {
 	QJsonParseError error;
 	const QJsonDocument doc = QJsonDocument::fromJson(query.toUtf8(), &error);
-	assert(error.error == QJsonParseError::NoError);
-	assert(doc.isObject());
+	ASSERT(error.error == QJsonParseError::NoError);
+	ASSERT(doc.isObject());
 	
 	QJsonObject json = doc.object();
 
-	assert(json[Common::typeField].isString());
+	ASSERT(json[Common::typeField].isString());
 	const QString type = json[Common::typeField].toString();
 
 	if (type == Common::registrationRequest)
@@ -75,7 +75,7 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 	}
 	else
 	{
-		assert(!"Not implemented");
+		ASSERT(!"Not implemented");
 	}
 }
 
@@ -143,8 +143,9 @@ std::vector<Common::Message> DatabaseController::getMessages(const Common::GetMe
 	while (m_getMessagesQuery.next())
 	{
 		const Common::MessageIdType id = m_getMessagesQuery.value(0).toInt();
-		const QDateTime dateTime = 
-			QDateTime::fromString(m_getMessagesQuery.value(1).toString(), Common::dateTimeFormat);
+		const QDateTime dateTime = m_getMessagesQuery.value(1).toDateTime();
+		emit error(m_getMessagesQuery.value(1).toString());
+		ASSERT(dateTime.isValid());
 
 		const Common::PersonIdType idFrom = m_getMessagesQuery.value(2).toInt();
 		const Common::PersonIdType idTo = m_getMessagesQuery.value(3).toInt();
@@ -182,7 +183,7 @@ std::vector<Common::Message> DatabaseController::insertMessages(const Common::Se
 		else
 		{
 			message.id = getLastInsertedMessageId();
-			assert(*message.id >= 0);
+			ASSERT(*message.id >= 0);
 			message.state = Common::Message::State::Sent;
 		}
 		
@@ -363,7 +364,7 @@ Common::MessageIdType Controllers::Data::DatabaseController::getLastInsertedMess
 
 std::optional<QString> DatabaseController::initQueries()
 {
-	assert(m_database.isOpen());
+	ASSERT(m_database.isOpen());
 
 	m_getMessagesQuery = QSqlQuery(m_database);
 	m_insertMessageQuery = QSqlQuery(m_database);
@@ -553,12 +554,12 @@ bool DatabaseController::createEmptyDatabase()
 bool DatabaseController::debugFillEmptyDatabase()
 {
 	QFile debugMessages("debugMessages.json");
-	assert(debugMessages.open(QFile::ReadOnly | QFile::Text));
+	ASSERT(debugMessages.open(QFile::ReadOnly | QFile::Text));
 
 	QJsonDocument doc = QJsonDocument::fromJson(debugMessages.readAll());
 	debugMessages.close();
 
-	assert(doc.isArray());
+	ASSERT(doc.isArray());
 	if (!insertMessages(doc.array()))
 	{
 		return false;

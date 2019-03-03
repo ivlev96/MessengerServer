@@ -12,18 +12,18 @@ GlobalController::GlobalController(QObject *parent)
 	, m_cout(stdout)
 {
 	m_server->moveToThread(m_serverThread);
-	assert(connect(m_serverThread, &QThread::finished, m_server, &QObject::deleteLater));
-	assert(connect(m_serverThread, &QThread::started, m_server, &ServerController::onThreadStarted));
+	VERIFY(connect(m_serverThread, &QThread::finished, m_server, &QObject::deleteLater));
+	VERIFY(connect(m_serverThread, &QThread::started, m_server, &ServerController::onThreadStarted));
 
-	assert(connect(m_server, &ServerController::processClientQuery, m_db.get(), &DatabaseController::processClientQuery));
-	assert(connect(m_db.get(), &DatabaseController::responseReady, m_server, &ServerController::onResponseReady));
+	VERIFY(connect(m_server, &ServerController::processClientQuery, m_db.get(), &DatabaseController::processClientQuery));
+	VERIFY(connect(m_db.get(), &DatabaseController::responseReady, m_server, &ServerController::onResponseReady));
 
 	//errors
-	assert(connect(m_server, &ServerController::error, this, &GlobalController::onError));
-	assert(connect(m_db.get(), &DatabaseController::error, this, &GlobalController::onError));
+	VERIFY(connect(m_server, &ServerController::error, this, &GlobalController::onError));
+	VERIFY(connect(m_db.get(), &DatabaseController::error, this, &GlobalController::onError));
 
 	m_serverThread->start();
-	assert(m_serverThread->isRunning());
+	ASSERT(m_serverThread->isRunning());
 }
 
 GlobalController::~GlobalController()

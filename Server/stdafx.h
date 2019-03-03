@@ -24,3 +24,15 @@
 #include <QSqlRecord>
 #include <QSqlQuery>
 #include <QSqlError>
+
+#ifdef _DEBUG
+
+#define ASSERT(X) _ASSERT(X)
+#define VERIFY(X) _ASSERT(X)
+
+#else
+
+#define ASSERT(X)
+#define VERIFY(X) (X)
+
+#endif

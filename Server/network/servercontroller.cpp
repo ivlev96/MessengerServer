@@ -20,9 +20,9 @@ void ServerController::onNewConnection()
 
 	newSocket->setParent(this);
 
-	assert(connect(newSocket, &QWebSocket::disconnected, this, &ServerController::onClientDisconnected));
-	assert(connect(newSocket, &QWebSocket::textMessageReceived, this, &ServerController::onMessageReceived));
-	assert(connect(newSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(onClientError(QAbstractSocket::SocketError))));
+	VERIFY(connect(newSocket, &QWebSocket::disconnected, this, &ServerController::onClientDisconnected));
+	VERIFY(connect(newSocket, &QWebSocket::textMessageReceived, this, &ServerController::onMessageReceived));
+	VERIFY(connect(newSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(onClientError(QAbstractSocket::SocketError))));
 
 	m_clients << newSocket;
 }
@@ -31,10 +31,10 @@ void ServerController::onThreadStarted()
 {
 	m_server = std::make_unique<QWebSocketServer>("SunChat Server", QWebSocketServer::NonSecureMode, this);
 	
-	assert(m_server->listen(QHostAddress::Any, m_port));
+	ASSERT(m_server->listen(QHostAddress::Any, m_port));
 	log(QString("SunChat Server is listening on port %1").arg(m_port));
 
-	assert(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
+	VERIFY(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
 }
 
 void ServerController::onResponseReady(const QString& response, QWebSocket* socket)
@@ -45,7 +45,7 @@ void ServerController::onResponseReady(const QString& response, QWebSocket* sock
 void ServerController::onMessageReceived(const QString& message)
 {
 	QWebSocket *client = qobject_cast<QWebSocket*>(sender());
-	assert(client);
+	ASSERT(client);
 	log(client, message);
 	
 	emit processClientQuery(message, client);
@@ -54,7 +54,7 @@ void ServerController::onMessageReceived(const QString& message)
 void ServerController::onClientError(QAbstractSocket::SocketError)
 {
 	QWebSocket *client = qobject_cast<QWebSocket*>(sender());
-	assert(client);
+	ASSERT(client);
 
 	log(client, QString("error: %1").arg(client->errorString()));
 }
@@ -62,7 +62,7 @@ void ServerController::onClientError(QAbstractSocket::SocketError)
 void ServerController::onClientDisconnected()
 {
 	QWebSocket *client = qobject_cast<QWebSocket*>(sender());
-	assert(client);
+	ASSERT(client);
 	log(client, "disconnected");
 
 	m_clients.removeAll(client);
