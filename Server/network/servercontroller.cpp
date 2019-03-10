@@ -13,6 +13,16 @@ ServerController::~ServerController()
 	m_server->close();
 }
 
+void ServerController::onThreadStarted()
+{
+	m_server = std::make_unique<QWebSocketServer>("SunChat Server", QWebSocketServer::NonSecureMode, this);
+
+	VERIFY(m_server->listen(QHostAddress::Any, m_port));
+	log(QString("SunChat Server is listening on port %1").arg(m_port));
+
+	VERIFY(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
+}
+
 void ServerController::onNewConnection()
 {
 	QWebSocket* newSocket = m_server->nextPendingConnection();
@@ -25,16 +35,6 @@ void ServerController::onNewConnection()
 	VERIFY(connect(newSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(onClientError(QAbstractSocket::SocketError))));
 
 	m_clients << newSocket;
-}
-
-void ServerController::onThreadStarted()
-{
-	m_server = std::make_unique<QWebSocketServer>("SunChat Server", QWebSocketServer::NonSecureMode, this);
-	
-	ASSERT(m_server->listen(QHostAddress::Any, m_port));
-	log(QString("SunChat Server is listening on port %1").arg(m_port));
-
-	VERIFY(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
 }
 
 void ServerController::onResponseReady(const QString& response, QWebSocket* socket)

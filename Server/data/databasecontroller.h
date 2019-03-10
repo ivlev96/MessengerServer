@@ -48,10 +48,6 @@ private:
 	std::optional<QString> initQueries();
 	bool createEmptyDatabase();
 
-#ifdef o_DEBUG
-	bool debugFillEmptyDatabase();
-#endif
-
 private:
 	QSqlDatabase m_database;
 	const QString m_databaseName;

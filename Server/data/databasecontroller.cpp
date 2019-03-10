@@ -17,23 +17,13 @@ DatabaseController::DatabaseController()
 			return;
 		}
 	}
-	ASSERT(m_database.open());
+	VERIFY(m_database.open());
 
 	const auto error = initQueries();
 	if (error.has_value())
 	{
-		ASSERT(!error->toStdString().c_str());
+		emit this->error(*error);
 	}
-
-#ifdef o_DEBUG
-	if (needToCreateDb)
-	{
-		if (!debugFillEmptyDatabase())
-		{
-			return;
-		}
-	}
-#endif
 }
 
 DatabaseController::~DatabaseController()
@@ -144,7 +134,6 @@ std::vector<Common::Message> DatabaseController::getMessages(const Common::GetMe
 	{
 		const Common::MessageIdType id = m_getMessagesQuery.value(0).toInt();
 		const QDateTime dateTime = m_getMessagesQuery.value(1).toDateTime();
-		emit error(m_getMessagesQuery.value(1).toString());
 		ASSERT(dateTime.isValid());
 
 		const Common::PersonIdType idFrom = m_getMessagesQuery.value(2).toInt();
@@ -549,33 +538,4 @@ bool DatabaseController::createEmptyDatabase()
 	m_database.close();
 	return true;
 }
-
-#ifdef o_DEBUG
-bool DatabaseController::debugFillEmptyDatabase()
-{
-	QFile debugMessages("debugMessages.json");
-	ASSERT(debugMessages.open(QFile::ReadOnly | QFile::Text));
-
-	QJsonDocument doc = QJsonDocument::fromJson(debugMessages.readAll());
-	debugMessages.close();
-
-	ASSERT(doc.isArray());
-	if (!insertMessages(doc.array()))
-	{
-		return false;
-	}
-
-	if (!insertPerson(Person(1, "Ivan", "Ivlev", QUrl::fromLocalFile("Vanya.jpg").toString()).toJson()))
-	{
-		return false;
-	}
-
-	if (!insertPerson(Person(2, "Pavel", "Zharov", QUrl::fromLocalFile("Pasha.jpg").toString()).toJson()))
-	{
-		return false;
-	}
-
-	return true;
-}
-#endif
 
