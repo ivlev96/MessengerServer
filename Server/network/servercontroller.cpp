@@ -23,6 +23,24 @@ void ServerController::onThreadStarted()
 	VERIFY(connect(m_server.get(), &QWebSocketServer::newConnection, this, &ServerController::onNewConnection));
 }
 
+void ServerController::onSaveClientId(const Common::PersonIdType& id, QWebSocket* socket)
+{
+	m_socketById.insert(id, socket);
+}
+
+void ServerController::onResponseReady(const QString& response, QWebSocket* socket)
+{
+	socket->sendTextMessage(response);
+}
+
+void ServerController::onSendCommand(const QString& command, const Common::PersonIdType& userId)
+{
+	if (m_socketById.contains(userId))
+	{
+		m_socketById[userId]->sendTextMessage(command);
+	}
+}
+
 void ServerController::onNewConnection()
 {
 	QWebSocket* newSocket = m_server->nextPendingConnection();
@@ -35,11 +53,6 @@ void ServerController::onNewConnection()
 	VERIFY(connect(newSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(onClientError(QAbstractSocket::SocketError))));
 
 	m_clients << newSocket;
-}
-
-void ServerController::onResponseReady(const QString& response, QWebSocket* socket)
-{
-	socket->sendTextMessage(response);
 }
 
 void ServerController::onMessageReceived(const QString& message)
@@ -66,6 +79,7 @@ void ServerController::onClientDisconnected()
 	log(client, "disconnected");
 
 	m_clients.removeAll(client);
+	m_socketById.erase(std::find(m_socketById.begin(), m_socketById.end(), client));
 	client->deleteLater();
 }
 

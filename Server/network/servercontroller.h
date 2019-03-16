@@ -23,7 +23,9 @@ signals:
 
 public slots:
 	void onThreadStarted();
+	void onSaveClientId(const Common::PersonIdType& id, QWebSocket* socket);
 	void onResponseReady(const QString& response, QWebSocket* socket);
+	void onSendCommand(const QString& command, const Common::PersonIdType& userId);
 
 private slots:
 	void onNewConnection();
@@ -40,6 +42,7 @@ private:
 	quint16 m_port;
 	std::unique_ptr<QWebSocketServer> m_server;
 	QList<QWebSocket*> m_clients;
+	QMap<Common::PersonIdType, QWebSocket*> m_socketById;
 };
 
 }

@@ -24,11 +24,13 @@ public slots:
 
 signals:
 	void responseReady(const QString& response, QWebSocket* socket);
+	void sendCommand(const QString& command, const Common::PersonIdType& userId) const;
 	void error(const QString& error) const;
+	void saveClientId(const Common::PersonIdType& id, QWebSocket* socket) const;
 
 private:
-	QString processRegistrationQuery(const QJsonObject& command) const;
-	QString processLogInRequestQuery(const QJsonObject& command) const;
+	QString processRegistrationQuery(const QJsonObject& command, QWebSocket* socket) const;
+	QString processLogInRequestQuery(const QJsonObject& command, QWebSocket* socket) const;
 	QString processGetLastMessagesQuery(const QJsonObject& command) const;
 	QString processSendMessagesQuery(const QJsonObject& command) const;
 	QString processGetMessagesQuery(const QJsonObject& command) const;

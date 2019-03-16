@@ -45,11 +45,11 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 
 	if (type == Common::registrationRequest)
 	{
-		emit responseReady(processRegistrationQuery(json), socket);
+		emit responseReady(processRegistrationQuery(json, socket), socket);
 	}
 	else if (type == Common::logInRequest)
 	{
-		emit responseReady(processLogInRequestQuery(json), socket);
+		emit responseReady(processLogInRequestQuery(json, socket), socket);
 	}
 	else if (type == Common::getLastMessagesRequest)
 	{
@@ -69,20 +69,30 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 	}
 }
 
-QString DatabaseController::processRegistrationQuery(const QJsonObject& command) const
+QString DatabaseController::processRegistrationQuery(const QJsonObject& command, QWebSocket* socket) const
 {
 	const Common::RegistrationRequest request(command);
 	const Common::RegistrationResponse response(insertPerson(request));
 
-	return QJsonDocument(response.toJson()).toJson();
+	if (response.person)
+	{
+		emit saveClientId(response.person->id, socket);
+	}
+
+	return Common::toString(response);
 }
 
-QString DatabaseController::processLogInRequestQuery(const QJsonObject& command) const
+QString DatabaseController::processLogInRequestQuery(const QJsonObject& command, QWebSocket* socket) const
 {
 	const Common::LogInRequest request(command);
 	const Common::LogInResponse response(getPerson(request.login, request.password));
 
-	return QJsonDocument(response.toJson()).toJson();
+	if (response.person)
+	{
+		emit saveClientId(response.person->id, socket);
+	}
+
+	return Common::toString(response);
 }
 
 QString DatabaseController::processGetLastMessagesQuery(const QJsonObject& command) const
@@ -90,7 +100,7 @@ QString DatabaseController::processGetLastMessagesQuery(const QJsonObject& comma
 	const Common::GetLastMessagesRequest request(command);
 	const Common::GetLastMessagesResponse response(request.id, getLastMessages(request), request.before);
 
-	return QJsonDocument(response.toJson()).toJson();
+	return Common::toString(response);
 }
 
 QString DatabaseController::processSendMessagesQuery(const QJsonObject& command) const
@@ -98,7 +108,15 @@ QString DatabaseController::processSendMessagesQuery(const QJsonObject& command)
 	const Common::SendMessagesRequest request(command);
 	const Common::SendMessagesResponse response(insertMessages(request));
 
-	return QJsonDocument(response.toJson()).toJson();
+	for (auto& message : response.messages)
+	{
+		const auto from = getPerson(message.from);
+		ASSERT(from);
+		const Common::NewMessageCommand newMessage(*from, message);
+		emit sendCommand(Common::toString(newMessage), message.to);
+	}
+
+	return Common::toString(response);
 }
 
 QString DatabaseController::processGetMessagesQuery(const QJsonObject& command) const
@@ -106,7 +124,7 @@ QString DatabaseController::processGetMessagesQuery(const QJsonObject& command) 
 	const Common::GetMessagesRequest request(command);
 	const Common::GetMessagesResponse response(request.id1, request.id2, getMessages(request), request.before);
 
-	return QJsonDocument(response.toJson()).toJson();
+	return Common::toString(response);
 }
 
 std::vector<Common::Message> DatabaseController::getMessages(const Common::GetMessagesRequest& request) const
