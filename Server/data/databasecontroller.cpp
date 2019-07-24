@@ -63,6 +63,10 @@ void DatabaseController::processClientQuery(const QString& query, QWebSocket* so
 	{
 		emit responseReady(processGetMessagesQuery(json), socket);
 	}
+	else if (type == Common::findFriendRequest)
+	{
+		emit responseReady(processFindFriendQuery(json), socket);
+	}
 	else
 	{
 		ASSERT(!"Not implemented");
@@ -123,6 +127,14 @@ QString DatabaseController::processGetMessagesQuery(const QJsonObject& command) 
 {
 	const Common::GetMessagesRequest request(command);
 	const Common::GetMessagesResponse response(request.id1, request.id2, getMessages(request), request.before);
+
+	return Common::toString(response);
+}
+
+QString DatabaseController::processFindFriendQuery(const QJsonObject& command) const
+{
+	const Common::FindFriendRequest request(command);
+	const Common::FindFriendResponse response(getPossiblePersons(request));
 
 	return Common::toString(response);
 }
@@ -319,8 +331,7 @@ std::vector<std::pair<Common::Person, Common::Message>> DatabaseController::getL
 		const int idFrom = m_getLastMessagesQuery.value(1).toInt();
 		const int idTo = m_getLastMessagesQuery.value(2).toInt();
 
-		const QDateTime dateTime =
-			QDateTime::fromString(m_getLastMessagesQuery.value(3).toString(), Common::dateTimeFormat);
+		const QDateTime dateTime = m_getLastMessagesQuery.value(3).toDateTime();
 
 		const QString text = m_getLastMessagesQuery.value(4).toString();
 
@@ -339,7 +350,66 @@ std::vector<std::pair<Common::Person, Common::Message>> DatabaseController::getL
 	return messages;
 }
 
-Common::PersonIdType Controllers::Data::DatabaseController::getLastInsertedPersonId() const
+std::vector<std::pair<Common::Person, std::optional<Common::Message>>>
+DatabaseController::getPossiblePersons(const Common::FindFriendRequest& request) const
+{
+	m_findFriendsQuery.bindValue(":pattern", QString("%%1%").arg(request.name.toLower()));
+	m_findFriendsQuery.bindValue(":myId", request.id);
+	m_findFriendsQuery.bindValue(":count", request.count);
+	m_findFriendsQuery.bindValue(":after", request.after.has_value() ? *request.after : 0);
+	m_findFriendsQuery.bindValue(":isNew", !request.after.has_value());
+	m_findFriendsQuery.bindValue(":withMessages", request.withMessages);
+	m_findFriendsQuery.bindValue(":withoutMessages", request.withoutMessages);
+
+	if (!m_findFriendsQuery.exec())
+	{
+		emit error(m_findFriendsQuery.lastError().text());
+		return {};
+	}
+
+	std::vector<std::pair<Common::Person, std::optional<Common::Message>>> result;
+
+	while (m_findFriendsQuery.next())
+	{
+		const Common::PersonIdType otherId = m_findFriendsQuery.value(0).toInt();
+		const QString firstName = m_findFriendsQuery.value(1).toString();
+		const QString lastName = m_findFriendsQuery.value(2).toString();
+		const QString avatarUrl = m_findFriendsQuery.value(3).toString();
+
+		const Common::Person person(otherId, firstName, lastName, avatarUrl);
+
+		if (m_findFriendsQuery.value(4).isNull() ||
+			m_findFriendsQuery.value(5).isNull() ||
+			m_findFriendsQuery.value(6).isNull() ||
+			m_findFriendsQuery.value(7).isNull() ||
+			m_findFriendsQuery.value(8).isNull())
+		{
+			ASSERT(
+				m_findFriendsQuery.value(4).isNull() &&
+				m_findFriendsQuery.value(5).isNull() &&
+				m_findFriendsQuery.value(6).isNull() &&
+				m_findFriendsQuery.value(7).isNull() &&
+				m_findFriendsQuery.value(8).isNull());
+
+			result.emplace_back(person, std::nullopt);
+		}
+		else
+		{
+			const Common::MessageIdType messageId = m_findFriendsQuery.value(4).toInt();
+			const int idFrom = m_findFriendsQuery.value(5).toInt();
+			const int idTo = m_findFriendsQuery.value(6).toInt();
+			const QDateTime dateTime = m_findFriendsQuery.value(7).toDateTime();
+			const QString text = m_findFriendsQuery.value(8).toString();
+
+			const Common::Message message(idFrom, idTo, dateTime, text, messageId, Common::Message::State::Sent);
+			result.emplace_back(person, message);
+		}
+	}
+
+	return result;
+}
+
+Common::PersonIdType DatabaseController::getLastInsertedPersonId() const
 {
 	if (!m_getLastInsertedIdQuery.exec())
 	{
@@ -385,6 +455,7 @@ std::optional<QString> DatabaseController::initQueries()
 	m_selectPersonFromAuthInfoQuery = QSqlQuery(m_database);
 
 	m_getLastMessagesQuery = QSqlQuery(m_database);
+	m_findFriendsQuery = QSqlQuery(m_database);
 
 	m_getLastInsertedIdQuery = QSqlQuery(m_database);
 
@@ -491,6 +562,40 @@ std::optional<QString> DatabaseController::initQueries()
 		"LIMIT :count "))
 	{
 		return m_getLastMessagesQuery.lastError().text();
+	}
+
+	if (!m_findFriendsQuery.prepare(
+		"SELECT MatchedPersons.id, MatchedPersons.firstName, MatchedPersons.lastName, MatchedPersons.avatarUrl, M.id, M.idFrom, M.idTo, M.messageDateTime, M.messageText "
+		"  FROM "
+		"    (SELECT * "
+		"      FROM Person "
+		"      WHERE (firstName || \" \" || lastName LIKE :pattern "
+		"        OR lastName || \" \" || firstName LIKE :pattern) "
+		"        AND id != :myId "
+		"        AND (id >= :after OR :isNew) "
+		"    ) AS MatchedPersons "
+		"  LEFT JOIN "
+		"    (SELECT otherId, MAX(messageId) as messageId "
+		"      FROM "
+		"        (SELECT idTo AS otherId, id AS messageId "
+		"          FROM Messages "
+		"          WHERE idFrom = :myId "
+		"        UNION "
+		"          SELECT idFrom AS otherId, id AS messageId "
+		"          FROM Messages "
+		"          WHERE idTo = :myId) "
+		"      GROUP BY otherId) as LastMessages "
+		"    ON MatchedPersons.id = LastMessages.otherId "
+		"  LEFT JOIN Messages as M "
+		"    ON LastMessages.messageId = M.id "
+		"  WHERE (M.id IS NULL AND :withoutMessages) OR "
+		"    (M.id IS NOT NULL AND :withMessages) "
+		"ORDER BY "
+		"  MatchedPersons.firstName ASC, "
+		"  MatchedPersons.lastName ASC "
+		"LIMIT :count"))
+	{
+		return m_findFriendsQuery.lastError().text();
 	}
 
 	if (!m_getLastInsertedIdQuery.prepare(

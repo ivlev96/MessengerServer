@@ -34,6 +34,7 @@ private:
 	QString processGetLastMessagesQuery(const QJsonObject& command) const;
 	QString processSendMessagesQuery(const QJsonObject& command) const;
 	QString processGetMessagesQuery(const QJsonObject& command) const;
+	QString processFindFriendQuery(const QJsonObject& command) const;
 
 	std::vector<Common::Message> getMessages(const Common::GetMessagesRequest& request) const;
 	std::vector<Common::Message> insertMessages(const Common::SendMessagesRequest& request) const;
@@ -43,6 +44,9 @@ private:
 	std::optional<Common::Person> insertPerson(const Common::RegistrationRequest& request) const;
 
 	std::vector<std::pair<Common::Person, Common::Message>> getLastMessages(const Common::GetLastMessagesRequest& request) const;
+
+	std::vector<std::pair<Common::Person, std::optional<Common::Message>>>
+		getPossiblePersons(const Common::FindFriendRequest& request) const;
 
 	Common::PersonIdType getLastInsertedPersonId() const;
 	Common::MessageIdType getLastInsertedMessageId() const;
@@ -66,6 +70,7 @@ private:
 	mutable QSqlQuery m_selectPersonFromAuthInfoQuery;
 
 	mutable QSqlQuery m_getLastMessagesQuery;
+	mutable QSqlQuery m_findFriendsQuery;
 
 	mutable QSqlQuery m_getLastInsertedIdQuery;
 };
